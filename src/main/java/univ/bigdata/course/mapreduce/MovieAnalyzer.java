@@ -61,7 +61,53 @@ public class MovieAnalyzer implements Serializable {
     sc = new JavaSparkContext(conf);
   }
 
- 
+
+  /**
+  *  Calculate Movie average the same way we do for all movies average after we filter
+  *  the main rdd by ProductId.
+  *   <br>@param productId - id of the movie to calculate the average.
+  */
+  public float totalMovieAverage(String productId){
+      if(productId == null || productId.isEmpty()){
+          throw new IllegalArgumentException("productId");
+      }
+
+      sc.clearCallSite();
+      sc.clearJobGroup();
+      JavaRDD<String> rddMovieData = sc.textFile(inputFileName).cache();
+
+      //Filter according to the given product id.
+      rddMovieData  =  rddMovieData.filter(new Function<String, Boolean>() {
+          @Override
+          public Boolean call(String s) throws Exception {
+              String[] data = s.split("\t");
+              float movieScore = 0;
+
+              if( data.length >= 4) {
+                  String[] strArr = data[0].split(":");
+                  if(strArr.length > 1) {
+                      try {
+                          String movieId = strArr[1].trim();
+                          if(productId.equals(movieId)){
+                              return true;
+                          }
+                          return false;
+                      }
+                      catch(Exception e) {
+                          System.err.println("<<ERROR>> " + s);
+                          e.printStackTrace();
+                      }
+                  }
+              }
+
+              return false;
+          }
+      });
+
+
+      return getAverageFromRdd(rddMovieData);
+  }
+
   /**
    * <br>For each entry retrieved from getTopKMoviesAverageNFW ( getTopKMoviesAverage - No File Write), writes in the output file. 
    * <br>
@@ -155,71 +201,71 @@ public class MovieAnalyzer implements Serializable {
    * <br>@return movieRatingAvg   The total movie average score.
    */
   public float totalMoviesAverageScore() {
-    
     sc.clearCallSite();
     sc.clearJobGroup();
     
     JavaRDD<String> rddMovieData = sc.textFile(inputFileName).cache();
-
-    JavaRDD<Float> mapMovileScoreData = rddMovieData.map(new Function<String, Float>() {
-
-      @Override
-      public Float call(String arg0) throws Exception {
-        String[] data = arg0.split("\t");
-        float movieScore = 0;
-
-        if( data.length >= 4) {
-          String[] strArr = data[4].split(":");
-          if(strArr.length > 1) {
-            try { 
-              movieScore = Float.parseFloat(strArr[1].trim());
-            }
-            catch(Exception e) {
-              System.err.println("<<ERROR>> " + arg0);
-              e.printStackTrace();
-            }
-          }
-        }
-        
-        return movieScore; 
-      }
-    });
-    
-    Float totalMovieScore = mapMovileScoreData.reduce(new Function2<Float, Float, Float>() {
-
-      @Override
-      public Float call(Float arg0, Float arg1) throws Exception {
-        return arg0 + arg1;
-      }
-    });
-    
-    int totalMovieCount = mapMovileScoreData.map(new Function<Float, Integer>() {
-
-      @Override
-      public Integer call(Float arg0) throws Exception {
-        return 1;
-      }
-    }).reduce(new Function2<Integer, Integer, Integer>() {
-
-      @Override
-      public Integer call(Integer arg0, Integer arg1) throws Exception {
-        return arg0 + arg1;
-      }
-    });
-    
-    float movieRatingAvg = totalMovieScore / totalMovieCount;
-    
-    try {
-      outputWriter.write("Total average: " + movieRatingAvg);
-      outputWriter.write("\n\n");
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    
-    return movieRatingAvg;
+    return getAverageFromRdd(rddMovieData);
   }
   
-  
+  private float getAverageFromRdd(JavaRDD<String> rddMovieData){
+      JavaRDD<Float> mapMovileScoreData = rddMovieData.map(new Function<String, Float>() {
+
+          @Override
+          public Float call(String arg0) throws Exception {
+              String[] data = arg0.split("\t");
+              float movieScore = 0;
+
+              if( data.length >= 4) {
+                  String[] strArr = data[4].split(":");
+                  if(strArr.length > 1) {
+                      try {
+                          movieScore = Float.parseFloat(strArr[1].trim());
+                      }
+                      catch(Exception e) {
+                          System.err.println("<<ERROR>> " + arg0);
+                          e.printStackTrace();
+                      }
+                  }
+              }
+
+              return movieScore;
+          }
+      });
+
+      Float totalMovieScore = mapMovileScoreData.reduce(new Function2<Float, Float, Float>() {
+
+          @Override
+          public Float call(Float arg0, Float arg1) throws Exception {
+              return arg0 + arg1;
+          }
+      });
+
+      int totalMovieCount = mapMovileScoreData.map(new Function<Float, Integer>() {
+
+          @Override
+          public Integer call(Float arg0) throws Exception {
+              return 1;
+          }
+      }).reduce(new Function2<Integer, Integer, Integer>() {
+
+          @Override
+          public Integer call(Integer arg0, Integer arg1) throws Exception {
+              return arg0 + arg1;
+          }
+      });
+
+      float movieRatingAvg = totalMovieScore / totalMovieCount;
+
+      try {
+          outputWriter.write("Total average: " + movieRatingAvg);
+          outputWriter.write("\n\n");
+      } catch (IOException e) {
+          e.printStackTrace();
+      }
+
+      return movieRatingAvg;
+  }
   /**
    * <br>Closes all the open handlers before leaving.
    */

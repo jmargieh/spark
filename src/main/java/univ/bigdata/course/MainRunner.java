@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 
+import org.apache.commons.lang.math.NumberUtils;
 import univ.bigdata.course.mapreduce.MovieAnalyzer;
 
 public class MainRunner {
@@ -39,30 +40,35 @@ public class MainRunner {
       while((line = br.readLine()) != null) {
         String[] strArr = line.trim().split(" ");
         String methodName = strArr[0];
-        int[] intArr = new int[strArr.length - 1];
+        Object[] params = new Object[strArr.length - 1];
         Class[] clsArr = new Class[strArr.length - 1];
         for(int i = 1; i < strArr.length; i++) {
-          intArr[i - 1] = Integer.parseInt(strArr[i].trim());
-          clsArr[i - 1] = int.class;
+          if(NumberUtils.isNumber(strArr[i].trim())){
+                params[i - 1] = Integer.parseInt(strArr[i].trim());
+                clsArr[i - 1] = int.class;
+          }else{
+                params[i - 1] = strArr[i].trim();
+                clsArr[i - 1] = String.class;
+          }
         }
         
         System.out.println("Invoking :: " + line);
         try {
           method = movAnalyzer.getClass().getMethod(methodName, clsArr);
-          if(intArr.length == 0) {
+          if(params.length == 0) {
             Object retObj = method.invoke(movAnalyzer);
             System.out.println("[MainRunner] " + methodName + " invocation returned " + retObj);
           }
-          else if (intArr.length == 1) {
-            Object retObj = method.invoke(movAnalyzer, intArr[0]);
+          else if (params.length == 1) {
+            Object retObj = method.invoke(movAnalyzer, params[0]);
             System.out.println("[MainRunner] " + methodName + " invocation returned " + retObj);
           }
-          else if (intArr.length == 2) {
-            Object retObj = method.invoke(movAnalyzer, intArr[0], intArr[1]);
+          else if (params.length == 2) {
+            Object retObj = method.invoke(movAnalyzer, params[0], params[1]);
             System.out.println("[MainRunner] " + methodName + " invocation returned " + retObj);
           }
-          else if (intArr.length > 2) {
-            throw new Exception(methodName + " does not support " + intArr.length + " parameters.");
+          else if (params.length > 2) {
+            throw new Exception(methodName + " does not support " + params.length + " parameters.");
           }
         }
         catch(Exception e) {
