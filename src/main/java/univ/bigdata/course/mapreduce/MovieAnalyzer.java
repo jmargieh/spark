@@ -3,13 +3,8 @@ package univ.bigdata.course.mapreduce;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.TreeMap;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -61,7 +56,28 @@ public class MovieAnalyzer implements Serializable {
     sc = new JavaSparkContext(conf);
   }
 
+  private List<Tuple2<String, Integer>> getTopKReviewedMovies(JavaRDD<String> rddMovieData, int k, int naturalOrder){
+      JavaPairRDD<String, Integer> pairIdReviewRDD = rddMovieData.mapToPair(new PairFunction<String, String, Integer>() {
+          @Override
+          public Tuple2<String, Integer> call(String s) throws Exception {
+              String[] arr = s.split("\t");
+              return new Tuple2<String, Integer>(arr[0], 1);
+          }
+      });
 
+
+      JavaPairRDD<String,Integer> groupedByKeyRDD = pairIdReviewRDD.reduceByKey(new Function2<Integer, Integer, Integer>() {
+          @Override
+          public Integer call(Integer a, Integer b) throws Exception {
+              return a + b;
+          }
+      });
+
+      MostReviewdMvieComparator comparator = MostReviewdMvieComparator.VALUE_COMP;
+      comparator.setNaturalOrderFactor(naturalOrder);
+      List<Tuple2<String, Integer>> orederedIds = groupedByKeyRDD.top(k, comparator);
+      return orederedIds;
+  }
    /**
   *
   */
@@ -69,27 +85,28 @@ public class MovieAnalyzer implements Serializable {
        sc.clearCallSite();
        sc.clearJobGroup();
        JavaRDD<String> rddMovieData = sc.textFile(inputFileName).cache();
+       List<Tuple2<String, Integer>> orederedIds = getTopKReviewedMovies(rddMovieData, 1, -1);
 
+       return orederedIds.get(0)._1.split(" ")[1];
+   }
 
-       JavaPairRDD<String, Integer> pairIdReviewRDD = rddMovieData.mapToPair(new PairFunction<String, String, Integer>() {
-           @Override
-           public Tuple2<String, Integer> call(String s) throws Exception {
-                String[] arr = s.split("\t");
-               return new Tuple2<String, Integer>(arr[0], 1);
-           }
-       });
+  /**
+  *
+  *
+  */
+   public Map<String, Integer> reviewCountPerMovieTopKMovies(int topK){
+       sc.clearCallSite();
+       sc.clearJobGroup();
+       JavaRDD<String> rddMovieData = sc.textFile(inputFileName).cache();
+       List<Tuple2<String, Integer>> orederedIds = getTopKReviewedMovies(rddMovieData, topK, 1);
+       Map<String, Integer> orderedMap = new HashMap<String, Integer>();
 
+       for(Tuple2<String, Integer> elem : orederedIds){
+           //System.out.println(elem._1 + " : " + elem._2);
+           orderedMap.put(elem._1.split(" ")[1], elem._2);
+       }
 
-       JavaPairRDD<String,Integer> groupedByKeyRDD = pairIdReviewRDD.reduceByKey(new Function2<Integer, Integer, Integer>() {
-           @Override
-           public Integer call(Integer a, Integer b) throws Exception {
-               return a + b;
-           }
-       });
-
-       List<Tuple2<String, Integer>> orederedIds = groupedByKeyRDD.top(1, MostReviewdMvieComparator.VALUE_COMP);
-
-       return orederedIds.get(0)._1;
+       return orderedMap;
    }
 
 
@@ -359,13 +376,17 @@ public class MovieAnalyzer implements Serializable {
      */
    static class MostReviewdMvieComparator implements Comparator<Tuple2<String, Integer>>, Serializable {
         private static final long serialVersionUID = 1L;
-
+        private int naturalOrder = 1;
         private static final MostReviewdMvieComparator VALUE_COMP = new MostReviewdMvieComparator();
+
+        public void setNaturalOrderFactor(int i){
+            naturalOrder = i;
+        }
 
         @Override
         public int compare(Tuple2<String, Integer> arg1, Tuple2<String, Integer> arg2) {
             if (arg1._2 == arg2._2) {
-                return arg1._1.compareTo(arg2._1) * (-1);
+                return arg1._1.compareTo(arg2._1) * (naturalOrder);
             }
             return arg1._2.compareTo(arg2._2);
         }
