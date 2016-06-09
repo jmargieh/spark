@@ -62,6 +62,37 @@ public class MovieAnalyzer implements Serializable {
   }
 
 
+   /**
+  *
+  */
+   public String mostReviewedProduct(){
+       sc.clearCallSite();
+       sc.clearJobGroup();
+       JavaRDD<String> rddMovieData = sc.textFile(inputFileName).cache();
+
+
+       JavaPairRDD<String, Integer> pairIdReviewRDD = rddMovieData.mapToPair(new PairFunction<String, String, Integer>() {
+           @Override
+           public Tuple2<String, Integer> call(String s) throws Exception {
+                String[] arr = s.split("\t");
+               return new Tuple2<String, Integer>(arr[0], 1);
+           }
+       });
+
+
+       JavaPairRDD<String,Integer> groupedByKeyRDD = pairIdReviewRDD.reduceByKey(new Function2<Integer, Integer, Integer>() {
+           @Override
+           public Integer call(Integer a, Integer b) throws Exception {
+               return a + b;
+           }
+       });
+
+       List<Tuple2<String, Integer>> orederedIds = groupedByKeyRDD.top(1, MostReviewdMvieComparator.VALUE_COMP);
+
+       return orederedIds.get(0)._1;
+   }
+
+
   /**
   *  Calculate Movie average the same way we do for all movies average after we filter
   *  the main rdd by ProductId.
@@ -321,5 +352,23 @@ public class MovieAnalyzer implements Serializable {
       return -t1._2.score.compareTo(t2._2.score); 
     }
   }
-  
+
+
+    /**
+     * <br> A comparator class to compare scores
+     */
+   static class MostReviewdMvieComparator implements Comparator<Tuple2<String, Integer>>, Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private static final MostReviewdMvieComparator VALUE_COMP = new MostReviewdMvieComparator();
+
+        @Override
+        public int compare(Tuple2<String, Integer> arg1, Tuple2<String, Integer> arg2) {
+            if (arg1._2 == arg2._2) {
+                return arg1._1.compareTo(arg2._1) * (-1);
+            }
+            return arg1._2.compareTo(arg2._2);
+        }
+   }
+
 }
