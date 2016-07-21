@@ -6,23 +6,119 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 
-import org.apache.commons.lang.math.NumberUtils;
+import univ.bigdata.course.map.CalculateMeanAveragePrecision;
 import univ.bigdata.course.mapreduce.MovieAnalyzer;
+import univ.bigdata.course.pagerank.PageRank;
+import univ.bigdata.course.recommend.Recommend;
 
+
+/**
+ * This invoker class of SparkContext. <br>
+ * It holds the main method to run the application. <br>
+ * main() handles parameters like commands|recommend|map|pagerank and the action flow. <br>
+ */
 public class MainRunner {
 
   private static final String DEFAULT_COMMAND_FILE = "commands.txt";
 
+  /**
+   * The main method to invoke the application.
+   * 
+   * @param args    The command line arguments.
+   * @throws Exception
+   */
   public static void main(String[] args) throws Exception {
-
-    String commandFileName = DEFAULT_COMMAND_FILE;
-    if(args.length > 0) {
-      commandFileName = args[0];
+	
+	 // check if no arguments are provided!
+    if(args.length == 0) {
+      System.err.println("Usage: ./bin/spark−submit −−class −−master yarn −−deploy−mode cluster −−executor−memory 1G −−num−executors 4 /path/to/final−project−1.0−SNAPSHOT.jar commands|recommend|map|pagerank FileName [MapFileName]");
+      System.exit(-1);
     }
-    File commandFile = new File(commandFileName);
+    
+    String action = args[0];
+    //map command
+    if("map".equalsIgnoreCase(action)) {
+    	if (args.length != 3) {
+    		System.err.println("map command usage is : final−project −1.0−SNAPSHOT.jar map movies-train.txt movies-test.txt");
+    		System.exit(-1);
+    	} else {
+        	CalculateMeanAveragePrecision map = new CalculateMeanAveragePrecision(args[1], args[2]);
+        	map.calculateMAP();
+    	}
+    }
+    
+    // PageRank command
+    if("pagerank".equalsIgnoreCase(action)) {
+    	if (args.length != 2) {
+    		System.err.println("pagerank command usage is : final−project −1.0−SNAPSHOT.jar pagerank fileName.txt");
+    		System.exit(-1);
+    	} else {
+        	PageRank pageRank = new PageRank(args[1]);
+        	pageRank.calculatePageRank();
+    	}
+    }
+    
+    // recommend command - training stage
+    if("recommend".equalsIgnoreCase(action)) {
+    	String fileName = "";
+    	if (args.length != 2) {
+    		System.err.println("recommend command usage is : final−project −1.0−SNAPSHOT.jar recommend movies-simple.txt");
+    		System.exit(-1);
+    	} else {
+        	fileName = args[1];
+        }
+    		
+        File recommendFile = new File(fileName);
+        if(!recommendFile.exists()) {
+          System.err.println(fileName + ": does not exist! Please check the path or contact system administrator.");
+          System.exit(-1);
+        }
+        
+        BufferedReader br = null;
+    	try {
+    		
+    	      br = new BufferedReader(new FileReader(recommendFile));
+    	      String inputFileName = br.readLine();
+    	      String outputFileName = br.readLine();
+    	      
+    	      String line = null;
+    	      ArrayList<String> userList = new ArrayList<String>();
+    	      
+    	      while((line = br.readLine()) != null) {
+    	          	//Recommend rec = new Recommend(inputFileName,outputFileName,userList);
+    	    	  //Recommend rec = new Recommend(inputFileName,outputFileName,line.trim());
+    	    	  //rec.Recommendation();
+    	    	  userList.add(line.trim());
+    	      }
+    	      
+    	      
+          	Recommend rec = new Recommend(inputFileName,outputFileName,userList);
+          	rec.Recommendation();
+    	      
+    	} catch (FileNotFoundException e) {
+    	      e.printStackTrace();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+
+    }
+    
+    // commands command
+    if("commands".equalsIgnoreCase(action)) {
+    
+    String fileName = "";
+    if(args.length != 2) {
+    	System.err.println("commands command usage is : final−project −1.0−SNAPSHOT.jar commands commands.txt");
+		System.exit(-1);
+    } else {
+    	fileName = args[1];
+    }
+    
+    File commandFile = new File(fileName);
     if(!commandFile.exists()) {
-      System.err.println(commandFileName + ": does not exist! Please check the path or contact system administrator.");
+      System.err.println(fileName + ": does not exist! Please check the path or contact system administrator.");
       System.exit(-1);
     }
     
@@ -43,12 +139,13 @@ public class MainRunner {
         Object[] params = new Object[strArr.length - 1];
         Class[] clsArr = new Class[strArr.length - 1];
         for(int i = 1; i < strArr.length; i++) {
-          if(NumberUtils.isNumber(strArr[i].trim())){
-                params[i - 1] = Integer.parseInt(strArr[i].trim());
-                clsArr[i - 1] = int.class;
-          }else{
-                params[i - 1] = strArr[i].trim();
-                clsArr[i - 1] = String.class;
+          try {
+            params[i - 1] = Integer.parseInt(strArr[i].trim());
+            clsArr[i - 1] = int.class;
+          }
+          catch(Exception e) {
+            params[i - 1] = strArr[i].trim();
+            clsArr[i - 1] = String.class;
           }
         }
         
@@ -93,7 +190,9 @@ public class MainRunner {
         e.printStackTrace();
       }
     }
+    }
+    
+    
     
   }
-
 }

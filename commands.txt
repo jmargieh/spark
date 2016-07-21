@@ -1,5 +1,7 @@
-movies-simple.txt
-queries_out.txt
+/Users/Jawad/Desktop/final-project/movies-simple4.txt
+/Users/Jawad/Desktop/final-project/queries_out.txt
+totalMovieAverage B000M5AJQI
+totalMovieAverage B0002IQNAG
 getTopKMoviesAverage 2
 getTopKMoviesAverage 4
 totalMoviesAverageScore

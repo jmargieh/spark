@@ -1,5 +1,5 @@
-movies-simple.txt
-recommendation_out.txt
+/Users/Jawad/Desktop/final-project/movies-simple4.txt
+/Users/Jawad/Desktop/final-project/recommendation_out.txt
 AHCVWPLA1O4X8
 A39CX0EE4BZCZC
 A1L12LCCJ4VGJS
